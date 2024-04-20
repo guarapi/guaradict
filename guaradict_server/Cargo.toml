@@ -1,0 +1,12 @@
+[package]
+name = "guaradict_server"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "guaradict_server"
+path = "src/main.rs"
+
+[dependencies]
+guaradict_core = { path = "../guaradict_core" }
+tokio = { version = "1.37.0", features = ["full"] }
