@@ -2,7 +2,7 @@
 members = [
     "guaradict_core",
     "guaradict_server",
-    "guaradict_client",
+    "guaradict_client", "examples/single-node",
 ]
 resolver = "2"
 

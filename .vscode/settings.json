@@ -1,0 +1,14 @@
+{
+	"editor.wordWrapColumn": 100,
+	"files.eol": "\n",
+	"files.insertFinalNewline": true,
+	"editor.tabSize": 4,
+	"files.trimFinalNewlines": true,
+	"files.trimTrailingWhitespace": true,
+	"editor.rulers": [100],
+	"editor.codeActionsOnSave": {
+	},
+	"yaml.schemas": {
+		"./guaradict_core/guaradict.config.schema.json": ["guaradict.config.yaml"],
+	}
+}

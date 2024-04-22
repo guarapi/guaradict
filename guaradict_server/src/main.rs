@@ -1,11 +1,18 @@
 use std::sync::{Arc, Mutex};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt}; // Adicionando as importações necessárias
-use guaradict_core::Dictionary;
+use guaradict_core::{parse_config_file, Dictionary};
+
+// https://github.com/clap-rs/clap
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dictionary = Arc::new(Mutex::new(Dictionary::new()));
+
+    match parse_config_file("guaradict.config.yaml") {
+        Ok(config) => println!("{:#?}", config),
+        Err(e) => eprintln!("Error parsing config file: {}", e),
+    }
 
     let listener = TcpListener::bind("127.0.0.1:8080").await?;
     println!("Server listening on port 8080");
@@ -224,4 +231,3 @@ mod tests {
         server_task.await.unwrap();
     }
 }
-

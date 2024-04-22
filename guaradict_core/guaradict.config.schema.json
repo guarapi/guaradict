@@ -1,0 +1,94 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Configuração do Guaradict",
+    "type": "object",
+    "properties": {
+        "primary": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "ip": {
+                        "type": "string",
+                        "anyOf": [
+                            {
+                                "format": "ipv4"
+                            },
+                            {
+                                "format": "ipv6"
+                            }
+                        ]
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "database": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]+$"
+                    },
+                    "replicas": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "ip": {
+                                    "type": "string",
+                                    "anyOf": [
+                                        {
+                                            "format": "ipv4"
+                                        },
+                                        {
+                                            "format": "ipv6"
+                                        }
+                                    ]
+                                },
+                                "host": {
+                                    "type": "string"
+                                },
+                                "database": {
+                                    "type": "string",
+                                    "pattern": "^[a-z0-9-]+$"
+                                }
+                            },
+                            "required": [
+                                "name",
+                                "ip",
+                                "host",
+                                "database"
+                            ]
+                        },
+                        "minItems": 1
+                    }
+                },
+                "required": [
+                    "name",
+                    "ip",
+                    "host",
+                    "database",
+                    "replicas"
+                ]
+            },
+            "minItems": 1
+        },
+        "journal": {
+            "type": "object",
+            "properties": {
+                "strategy": {
+                    "type": "string",
+                    "enum": [
+                        "async",
+                        "sync",
+                        "snapshot_log"
+                    ]
+                }
+            }
+        }
+    },
+    "additionalProperties": false
+}

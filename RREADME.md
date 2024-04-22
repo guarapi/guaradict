@@ -22,4 +22,3 @@ Alta disponibilidade beirando o em tempo real, com persistência eventual, larga
 - Criar o client
 - Salvar um registro em memória
 - Recuperar um registro
-
