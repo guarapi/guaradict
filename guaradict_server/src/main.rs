@@ -1,7 +1,8 @@
 use std::sync::{Arc, Mutex};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::io::{AsyncReadExt, AsyncWriteExt}; // Adicionando as importações necessárias
-use guaradict_core::{parse_config_file, Dictionary};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use guaradict_core::dictionary::Dictionary;
+use guaradict_core::config::parse_config_file;
 
 // https://github.com/clap-rs/clap
 

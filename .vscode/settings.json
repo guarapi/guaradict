@@ -9,6 +9,12 @@
 	"editor.codeActionsOnSave": {
 	},
 	"yaml.schemas": {
-		"./guaradict_core/guaradict.config.schema.json": ["guaradict.config.yaml"],
+		"./guaradict_core/guaradict.config.schema.json": [
+			"guaradict.config.yaml"
+		],
+		"file:///Users/joaoneto/projetos/guarapi/guaradict/guaradict_core/guaradict.config.schema.json": [
+			"file:///Users/joaoneto/projetos/guarapi/guaradict/guaradict_core/fixtures/primary-replica.yaml",
+			"file:///Users/joaoneto/projetos/guarapi/guaradict/guaradict_core/fixtures/primary-multi-replica.yaml"
+		]
 	}
 }

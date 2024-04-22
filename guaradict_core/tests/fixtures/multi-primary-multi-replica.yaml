@@ -1,0 +1,21 @@
+primary:
+  - name: primary-node-1
+    ip: ::0
+    host: ::0
+    database: my-database-1
+    replicas:
+      - name: replica-node-1
+        ip: 127.0.0.1
+        host: 127.0.0.1
+        database: my-database-1
+  - name: primary-node-2
+    ip: ::0
+    host: ::0
+    database: my-database-2
+    replicas:
+      - name: replica-node-2
+        ip: 127.0.0.1
+        host: 127.0.0.1
+        database: my-database-2
+journal:
+  strategy: sync
