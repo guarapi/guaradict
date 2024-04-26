@@ -1,6 +1,10 @@
 use std::io;
 use tokio::net::TcpStream;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use rustyline::error::ReadlineError;
+use rustyline::DefaultEditor;
+
+use guaradict_core::commands::Command;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
@@ -8,29 +12,47 @@ async fn main() -> io::Result<()> {
     let mut stream = TcpStream::connect("127.0.0.1:8080").await?;
     println!("Conexão estabelecida com o servidor.");
 
-    // Loop do REPL
+    let mut rl = DefaultEditor::new().expect("Erro iniciando REPL");
+    if rl.load_history("history.txt").is_err() {
+        println!("Arquivo de histórico não encontrado");
+    }
+
     loop {
-        // Ler comando do usuário
-        let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
+        let readline = rl.readline("(db-name-placeholder): ");
+        match readline {
+            Ok(line) => {
+                let _ = rl.add_history_entry(line.as_str());
+                if line.trim().eq_ignore_ascii_case("QUIT") {
+                    break;
+                }
 
-        // Enviar comando para o servidor
-        if let Err(e) = send_command(&mut stream, &input).await {
-            eprintln!("Erro ao enviar comando para o servidor: {}", e);
-            continue;
-        }
-
-        // Verificar se o comando é QUIT e sair do loop
-        if input.trim() == "QUIT" {
-            break;
-        }
-
-        // Ler e exibir resposta do servidor
-        if let Err(e) = read_response(&mut stream).await {
-            eprintln!("Erro ao ler resposta do servidor: {}", e);
-            continue;
+                match Command::parse(&line) {
+                    Ok(command) => {
+                        let command_str = command.execute();
+                        send_command(&mut stream, &command_str).await?;
+                        read_response(&mut stream).await?;
+                    }
+                    Err(err) => {
+                        println!("Erro ao analisar comando: {:?}", err);
+                    }
+                }
+            }
+            Err(ReadlineError::Interrupted) => {
+                println!("CTRL-C");
+                break;
+            }
+            Err(ReadlineError::Eof) => {
+                println!("CTRL-D");
+                break;
+            }
+            Err(err) => {
+                println!("Erro: {:?}", err);
+                break;
+            }
         }
     }
+
+    rl.save_history("history.txt").unwrap();
 
     Ok(())
 }

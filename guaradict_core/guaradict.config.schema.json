@@ -76,6 +76,42 @@
             },
             "minItems": 1
         },
+        "replica": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "ip": {
+                        "type": "string",
+                        "anyOf": [
+                            {
+                                "format": "ipv4"
+                            },
+                            {
+                                "format": "ipv6"
+                            }
+                        ]
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "database": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]+$"
+                    }
+                },
+                "required": [
+                    "name",
+                    "ip",
+                    "host",
+                    "database"
+                ]
+            },
+            "minItems": 1
+        },
         "journal": {
             "type": "object",
             "properties": {
@@ -90,5 +126,27 @@
             }
         }
     },
+    "oneOf": [
+        {
+            "required": [
+                "primary"
+            ],
+            "not": {
+                "required": [
+                    "replica"
+                ]
+            }
+        },
+        {
+            "required": [
+                "replica"
+            ],
+            "not": {
+                "required": [
+                    "primary"
+                ]
+            }
+        }
+    ],
     "additionalProperties": false
 }

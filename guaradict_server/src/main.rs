@@ -1,8 +1,11 @@
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use guaradict_core::dictionary::Dictionary;
 use guaradict_core::config::parse_config_file;
+use guaradict_core::commands::Command;
+use tokio::time;
 
 // https://github.com/clap-rs/clap
 
@@ -17,6 +20,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let listener = TcpListener::bind("127.0.0.1:8080").await?;
     println!("Server listening on port 8080");
+
+
+    // Spawna uma thread para mandar delta a cada 60 segundos
+    tokio::spawn(send_delta_periodically(dictionary.clone()));
 
     loop {
         let (socket, _) = listener.accept().await?;
@@ -41,12 +48,14 @@ async fn handle_client(mut socket: TcpStream, dictionary: Arc<Mutex<Dictionary>>
             return Ok(());
         }
 
-        // Se não for QUIT, continua processando a solicitação
-        let response = match request.trim() {
-            req if req.starts_with("ADD") => add_entry(req, &dictionary),
-            req if req.starts_with("GET") => get_definition(req, &dictionary),
-            req if req.starts_with("DELETE") => remove_entry(req, &dictionary),
-            _ => "Invalid command".to_string(),
+        let response = match Command::parse(request.trim()) {
+            Ok(command) => match command {
+                Command::Add(key, value) => add_entry(key, value, &dictionary),
+                Command::Get(key) => get_definition(key, &dictionary),
+                Command::Delete(key) => remove_entry(key, &dictionary),
+                _ => "Invalid command".to_string(),
+            },
+            Err(_) => "Invalid command".to_string(),
         };
 
         if let Err(e) = socket.write_all(response.as_bytes()).await {
@@ -60,40 +69,27 @@ async fn handle_client(mut socket: TcpStream, dictionary: Arc<Mutex<Dictionary>>
     Ok(())
 }
 
+fn add_entry(key: String, value: String, dictionary: &Arc<Mutex<Dictionary>>) -> String {
+    dictionary.lock().unwrap().add_entry(key, value);
+    "Entry added successfully".to_string()
+}
 
-fn add_entry(request: &str, dictionary: &Arc<Mutex<Dictionary>>) -> String {
-    let mut parts = request.splitn(3, ' ');
-    parts.next(); // Ignore the ADD command
-    if let (Some(word), Some(definition)) = (parts.next(), parts.next()) {
-        dictionary.lock().unwrap().add_entry(word.to_string(), definition.to_string());
-        "Entry added successfully".to_string()
-    } else {
-        "Invalid request format".to_string()
+fn get_definition(key: String, dictionary: &Arc<Mutex<Dictionary>>) -> String {
+    match dictionary.lock().unwrap().get_definition(&key) {
+        Some(definition) => format!("Definition: {}", definition),
+        None => "Key not found".to_string(),
     }
 }
 
-fn get_definition(request: &str, dictionary: &Arc<Mutex<Dictionary>>) -> String {
-    let mut parts = request.split_whitespace();
-    parts.next(); // Ignore the GET command
-    if let Some(word) = parts.next() {
-        if let Some(definition) = dictionary.lock().unwrap().get_definition(word) {
-            format!("Definition: {}", definition)
-        } else {
-            "Word not found".to_string()
-        }
-    } else {
-        "Invalid request format".to_string()
-    }
+fn remove_entry(key: String, dictionary: &Arc<Mutex<Dictionary>>) -> String {
+    dictionary.lock().unwrap().remove_entry(&key);
+    "Entry removed successfully".to_string()
 }
 
-fn remove_entry(request: &str, dictionary: &Arc<Mutex<Dictionary>>) -> String {
-    let mut parts = request.split_whitespace();
-    parts.next(); // Ignore the DELETE command
-    if let Some(word) = parts.next() {
-        dictionary.lock().unwrap().remove_entry(word);
-        "Entry removed successfully".to_string()
-    } else {
-        "Invalid request format".to_string()
+async fn send_delta_periodically(_dictionary: Arc<Mutex<Dictionary>>) {
+    loop {
+        time::sleep(Duration::from_secs(60)).await;
+        println!("Enviado delta e escrevendo no journal...");
     }
 }
 

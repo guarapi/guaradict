@@ -1,0 +1,90 @@
+# Configuração do Guaradict
+#
+# Este arquivo define a configuração para o sistema Guaradict, um servidor de dicionário distribuído.
+# Siga as instruções abaixo para configurar corretamente o Guaradict de acordo com suas necessidades.
+#
+# 1. Configuração do Nó Primário:
+#    - O nó primário é a parte central do Guaradict e contém a base de dados principal.
+#    - Deve haver pelo menos um nó primário definido.
+#    - Cada nó primário deve especificar um nome, endereço IP, nome do host e nome da base de dados.
+#    - Réplicas podem ser associadas a cada nó primário para garantir redundância e disponibilidade.
+#
+# 2. Configuração das Réplicas:
+#    - Réplicas são cópias dos dados armazenados nos nós primários.
+#    - Cada réplica deve especificar um nome, endereço IP, nome do host e nome da base de dados.
+#    - Réplicas podem ser distribuídas em diferentes nós para garantir alta disponibilidade e tolerância a falhas.
+#
+# 3. Configuração do Jornal (Journal):
+#    - O jornal é responsável pelo registro de operações e pela sincronização de dados entre os nós.
+#    - Pode ser configurado com uma das seguintes estratégias: "async" (assíncrono), "sync" (síncrono) ou "snapshot_log" (snapshot + log).
+#    - A estratégia do jornal pode ser configurada globalmente.
+#
+# 4. Exemplos de Configuração:
+#    - Este arquivo contém exemplos comentados de diferentes cenários de configuração.
+#    - Comente ou descomente as seções de acordo com sua configuração desejada.
+#
+# Certifique-se de revisar e ajustar as configurações de acordo com suas necessidades antes de iniciar o Guaradict.
+#
+# Referências:
+# - Documentação do Guaradict: <link para a documentação>
+#
+
+# Joural - sync / async / snapshot_log
+journal:
+  strategy: sync
+
+# Este cenário representa um nó primário com uma réplica associada.
+primary:
+  - name: primary-node
+    ip: ::0
+    host: ::0
+    database: my-database
+    replicas:
+      - name: replica-node-1
+        ip: 127.0.0.1
+        host: 127.0.0.1
+        database: my-database
+
+# Este cenário representa dois nós primários, cada um com uma réplica associada.
+# primary:
+#   - name: primary-node-1
+#     ip: ::0
+#     host: ::0
+#     database: my-database-1
+#     replicas:
+#       - name: replica-node-1
+#         ip: 127.0.0.1
+#         host: 127.0.0.1
+#         database: my-database-1
+#   - name: primary-node-2
+#     ip: ::0
+#     host: ::0
+#     database: my-database-2
+#     replicas:
+#       - name: replica-node-2
+#         ip: 127.0.0.1
+#         host: 127.0.0.1
+#         database: my-database-2
+
+# Este cenário representa um nó primário com duas réplicas associadas
+# primary:
+#   - name: primary-node
+#     ip: ::0
+#     host: ::0
+#     database: my-database
+#     replicas:
+#       - name: replica-node-1
+#         ip: 127.0.0.1
+#         host: 127.0.0.1
+#         database: my-database
+#       - name: replica-node-2
+#         ip: ::1
+#         host: ::1
+#         database: my-database
+
+# Este cenário representa um nó de replica
+# replica:
+#   - name: primary-node
+#     ip: ::0
+#     host: ::0
+#     database: my-database
