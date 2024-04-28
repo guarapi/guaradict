@@ -1,3 +1,4 @@
+use std::env;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
@@ -13,13 +14,31 @@ use tokio::time;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dictionary = Arc::new(Mutex::new(Dictionary::new()));
 
-    match parse_config_file("guaradict.config.yaml") {
-        Ok(config) => println!("{:#?}", config),
-        Err(e) => eprintln!("Error parsing config file: {}", e),
+    let args: Vec<String> = env::args().collect();
+    let mut config_file = "guaradict.yaml"; // Caminho padrão do arquivo de configuração
+
+    // Verificar se o argumento --config foi fornecido
+    if args.len() > 2 {
+        if let Some(index) = args.iter().position(|arg| arg == "--config") {
+            if index + 1 < args.len() {
+                config_file = &args[index + 1];
+            }
+        }
     }
 
-    let listener = TcpListener::bind("127.0.0.1:8080").await?;
-    println!("Server listening on port 8080");
+    println!("Carregando arquivo: {}", config_file);
+
+    let _config = match parse_config_file(config_file) {
+        Ok(config) => config,
+        Err(e) => {
+            eprintln!("Error parsing config file: {}", e);
+            return Err(e.into());
+        }
+    };
+
+    let addr = "127.0.0.1:8080";
+    let listener = TcpListener::bind(&addr).await?;
+    println!("Server listening on port XXXXX");
 
 
     // Spawna uma thread para mandar delta a cada 60 segundos
