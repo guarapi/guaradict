@@ -1,16 +1,19 @@
-primary:
-  - name: primary-node
-    ip: ::0
-    host: ::0
-    database: my-database
-    replicas:
-      - name: replica-node-1
-        ip: 127.0.0.1
-        host: 127.0.0.1
-        database: my-database
-      - name: replica-node-2
-        ip: ::1
-        host: ::1
-        database: my-database
+nodeType: primary
+name: primary-node-1
+ip: 127.0.0.1
+host: 127.0.0.1
+port: 13141
 journal:
-  strategy: snapshot_log
+  size: 10
+  strategy: sync
+replicas:
+  - nodeType: replica
+    name: replica-node-1
+    ip: ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+    host: 127.0.0.1
+    port: 13142
+  - nodeType: replica
+    name: replica-node-2
+    ip: 127.0.0.1
+    host: 127.0.0.1
+    port: 13143

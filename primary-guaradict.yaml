@@ -3,6 +3,7 @@ nodeType: primary
 ip: ::0
 host: ::0
 port: 13141
+database: my-database
 
 replicas:
   - name: replica-node-1
