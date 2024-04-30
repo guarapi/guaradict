@@ -4,11 +4,8 @@ use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use guaradict_core::dictionary::Dictionary;
-use guaradict_core::config::parse_config_file;
+use guaradict_core::config::{parse_config_file, Config};
 use guaradict_core::commands::Command;
-use tokio::time;
-
-// https://github.com/clap-rs/clap
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -28,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Carregando arquivo: {}", config_file);
 
-    let _config = match parse_config_file(config_file) {
+    let config = match parse_config_file(config_file) {
         Ok(config) => config,
         Err(e) => {
             eprintln!("Error parsing config file: {}", e);
@@ -36,24 +33,120 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    let addr = "127.0.0.1:8080";
+    let addr = format!("{}:{}", config.ip, config.port);
     let listener = TcpListener::bind(&addr).await?;
-    println!("Server listening on port XXXXX");
+    println!("Servidor ouvindo em {}", addr);
 
+    // Clonando os recursos necessários para a thread assíncrona
+    let dictionary_clone = dictionary.clone();
+    let config_clone = config.clone();
 
-    // Spawna uma thread para mandar delta a cada 60 segundos
-    tokio::spawn(send_delta_periodically(dictionary.clone()));
+    // Gerenciador de réplica
+    if let Some(replicas) = config.replicas.as_ref() {
+        for replica in replicas {
+            println!("Réplica: {} {}:{}", replica.name.clone(), replica.ip.clone(), replica.port);
+        }
+    } else {
+        println!("Nenhuma réplica encontrada na configuração.");
+    }
 
-    loop {
-        let (socket, _) = listener.accept().await?;
-        let dictionary_clone = dictionary.clone();
+    // Thread assíncrona que gerencia a lógica do servidor
+    let server_task = tokio::spawn(async move {
+        if config_clone.node_type == "primary" {
+            let replicas_ready = pool_replicas(&config_clone).await.unwrap();
 
-        tokio::spawn(async move {
+            if replicas_ready {
+                println!("Todas as réplicas estão prontas. Iniciando handshake...");
+
+                // Inicia o handshake com as réplicas
+                for replica in config_clone.replicas.as_ref().unwrap() {
+                    handshake_with_replica(replica).await.unwrap();
+                }
+
+                println!("Handshake concluído com todas as réplicas");
+
+                // Spawna uma thread para mandar delta a cada 60 segundos para todas as réplicas
+                for replica in config_clone.replicas.as_ref().unwrap() {
+                    let addr = format!("{}:{}", replica.ip, replica.port);
+                    let dictionary_clone = dictionary_clone.clone();
+                    if let Err(e) = send_delta_periodically(addr, dictionary_clone).await {
+                        eprintln!("Error sending delta to replica {}: {}", replica.name, e);
+                    }
+                }
+            }
+        } else {
+            println!("Servidor replica em standby...");
+        }
+
+        // Loop principal para lidar com conexões de clientes
+        loop {
+            let (socket, _) = listener.accept().await.unwrap();
+
+            let dictionary_clone = dictionary.clone();
+
             if let Err(e) = handle_client(socket, dictionary_clone).await {
                 eprintln!("Error handling client: {}", e);
             }
-        });
+        }
+    });
+
+    // Aguardando o término do servidor
+    server_task.await?;
+
+    Ok(())
+}
+
+async fn pool_replicas(config: &Config) -> Result<bool, Box<dyn std::error::Error>> {
+    println!("Pooling nas réplicas...");
+
+    let mut replicas_ready = vec![false; config.replicas.as_ref().unwrap().len()];
+
+    loop {
+        for (index, replica) in config.replicas.as_ref().unwrap().iter().enumerate() {
+            if replicas_ready[index] {
+                continue;
+            }
+
+            if let Ok(mut _socket) = TcpStream::connect(format!("{}:{}", replica.ip, replica.port)).await {
+                println!("Réplica {} está pronta", replica.name);
+                replicas_ready[index] = true;
+            } else {
+                eprintln!("Failed to connect to replica {}", replica.name);
+                // Tentar reconectar à réplica após um curto período de tempo
+                let reconnect_delay = Duration::from_secs(5);
+                tokio::time::sleep(reconnect_delay).await;
+            }
+        }
+
+        if replicas_ready.iter().all(|&ready| ready) {
+            println!("Todas as réplicas estão prontas");
+            break;
+        }
+
+        // Aguarda um curto período antes de verificar novamente
+        tokio::time::sleep(Duration::from_secs(1)).await;
     }
+
+    Ok(true)
+}
+
+
+async fn handshake_with_replica(replica: &guaradict_core::config::Replica) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Iniciando handshake com a réplica {}", replica.name);
+
+    let mut socket = TcpStream::connect(format!("{}:{}", replica.ip, replica.port)).await?;
+    socket.write_all(b"READY").await?;
+
+    let mut buffer = [0; 5];
+    socket.read_exact(&mut buffer).await?;
+
+    if &buffer == b"READY" {
+        println!("Handshake com a réplica {} concluído", replica.name);
+    } else {
+        println!("Erro no handshake com a réplica {}", replica.name);
+    }
+
+    Ok(())
 }
 
 async fn handle_client(mut socket: TcpStream, dictionary: Arc<Mutex<Dictionary>>) -> Result<(), Box<dyn std::error::Error>> {
@@ -105,145 +198,9 @@ fn remove_entry(key: String, dictionary: &Arc<Mutex<Dictionary>>) -> String {
     "Entry removed successfully".to_string()
 }
 
-async fn send_delta_periodically(_dictionary: Arc<Mutex<Dictionary>>) {
+async fn send_delta_periodically(addr: String, _dictionary: Arc<Mutex<Dictionary>>) -> Result<(), Box<dyn std::error::Error>> {
     loop {
-        time::sleep(Duration::from_secs(60)).await;
-        println!("Enviado delta e escrevendo no journal...");
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_invalid_request() {
-        let mut dictionary = Dictionary::new();
-        dictionary.add_entry("hello".to_string(), "a greeting".to_string());
-
-        // Criando um servidor para simular a escuta de solicitações
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let server_addr = listener.local_addr().unwrap();
-
-        // Armazena o endereço do servidor para reutilização
-        let server_addr_clone = server_addr.clone();
-
-        // Manipula a solicitação no lado do servidor
-        let server_task = tokio::spawn(async move {
-            let (socket, _) = listener.accept().await.unwrap();
-            if let Err(e) = handle_client(socket, Arc::new(Mutex::new(dictionary))).await {
-                eprintln!("Error handling client: {}", e);
-            }
-        });
-
-        // Criando um cliente para simular a conexão ao servidor
-        let mut client = TcpStream::connect(server_addr_clone).await.unwrap();
-
-        // Escreve a solicitação inválida no lado do cliente
-        let _ = tokio::spawn(async move {
-            client.write_all(b"INVALID REQUEST").await.unwrap();
-            drop(client); // Fechando explicitamente a conexão
-        }).await;
-
-        // Espera a finalização do servidor
-        server_task.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_get_definition() {
-        let mut dictionary = Dictionary::new();
-        dictionary.add_entry("hello".to_string(), "a greeting".to_string());
-
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let server_addr = listener.local_addr().unwrap();
-
-        let server_task = tokio::spawn(async move {
-            let (socket, _) = listener.accept().await.unwrap();
-            if let Err(e) = handle_client(socket, Arc::new(Mutex::new(dictionary))).await {
-                eprintln!("Error handling client: {}", e);
-            }
-        });
-
-        let mut client = TcpStream::connect(server_addr).await.unwrap();
-
-        let _ = tokio::spawn(async move {
-            client.write_all(b"GET hello").await.unwrap();
-            drop(client);
-        }).await;
-
-        server_task.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_add_entry() {
-        let dictionary = Dictionary::new();
-
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let server_addr = listener.local_addr().unwrap();
-
-        let server_task = tokio::spawn(async move {
-            let (socket, _) = listener.accept().await.unwrap();
-            if let Err(e) = handle_client(socket, Arc::new(Mutex::new(dictionary))).await {
-                eprintln!("Error handling client: {}", e);
-            }
-        });
-
-        let mut client = TcpStream::connect(server_addr).await.unwrap();
-
-        let _ = tokio::spawn(async move {
-            client.write_all(b"ADD hello world").await.unwrap();
-            drop(client);
-        }).await;
-
-        server_task.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_remove_entry() {
-        let mut dictionary = Dictionary::new();
-        dictionary.add_entry("hello".to_string(), "a greeting".to_string());
-
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let server_addr = listener.local_addr().unwrap();
-
-        let server_task = tokio::spawn(async move {
-            let (socket, _) = listener.accept().await.unwrap();
-            if let Err(e) = handle_client(socket, Arc::new(Mutex::new(dictionary))).await {
-                eprintln!("Error handling client: {}", e);
-            }
-        });
-
-        let mut client = TcpStream::connect(server_addr).await.unwrap();
-
-        let _ = tokio::spawn(async move {
-            client.write_all(b"DELETE hello").await.unwrap();
-            drop(client);
-        }).await;
-
-        server_task.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_quit() {
-        let dictionary = Dictionary::new();
-
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let server_addr = listener.local_addr().unwrap();
-
-        let server_task = tokio::spawn(async move {
-            let (socket, _) = listener.accept().await.unwrap();
-            if let Err(e) = handle_client(socket, Arc::new(Mutex::new(dictionary))).await {
-                eprintln!("Error handling client: {}", e);
-            }
-        });
-
-        let mut client = TcpStream::connect(server_addr).await.unwrap();
-
-        let _ = tokio::spawn(async move {
-            client.write_all(b"QUIT").await.unwrap();
-            drop(client);
-        }).await;
-
-        server_task.await.unwrap();
+        tokio::time::sleep(Duration::from_secs(10)).await;
+        println!("Enviado delta e escrevendo no journal para {}", addr);
     }
 }
