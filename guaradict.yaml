@@ -91,7 +91,7 @@ journal:
 replicas:
   - nodeType: replica
     name: replica-node-1
-    ip: ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+    ip: 127.0.0.1
     host: 127.0.0.1
     port: 13142
   - nodeType: replica
