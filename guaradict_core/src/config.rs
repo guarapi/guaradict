@@ -7,7 +7,7 @@ use regex::Regex;
 
 use crate::errors::ConfigFileError;
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
     pub node_type: String,
@@ -26,7 +26,7 @@ impl Config {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Replica {
     pub node_type: String,
@@ -37,7 +37,7 @@ pub struct Replica {
     pub database: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Journal {
     pub strategy: String,
     pub size: u16,

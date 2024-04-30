@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+#[derive(PartialEq, Debug, Clone)]
 pub struct Dictionary {
     pub entries: HashMap<String, String>,
 }
