@@ -5,6 +5,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use guaradict_core::{commands::client, Dictionary};
 
 pub async fn start(listener: TcpListener, dictionary: Arc<Mutex<Dictionary>>) {
+    println!("Servidor ouvindo em {:?}", listener.local_addr());
+
     // Loop principal para lidar com conexões de clientes
     loop {
         let (socket, _) = listener.accept().await.unwrap();

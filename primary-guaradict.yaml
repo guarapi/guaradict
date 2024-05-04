@@ -1,6 +1,6 @@
 name: primary-node
 nodeType: primary
-ip: ::0
+ip: 127.0.0.1
 host: ::0
 port: 13141
 database: my-database

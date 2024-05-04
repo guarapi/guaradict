@@ -5,7 +5,7 @@ use std::io::BufReader;
 use serde_yaml::{self, Value};
 use regex::Regex;
 
-use crate::errors::ConfigFileError;
+use crate::{errors::ConfigFileError, replica::ReplicaStatus};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -35,6 +35,13 @@ pub struct Replica {
     pub host: String,
     pub port: u16,
     pub database: Option<String>,
+}
+
+impl From<Replica> for ReplicaStatus {
+    fn from(replica: Replica) -> Self {
+        let addr = format!("{}:{}", replica.ip, replica.port).parse().ok();
+        ReplicaStatus::new(replica.name, false, addr)
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

@@ -2,9 +2,10 @@ use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::sleep;
-use guaradict_core::{Dictionary, ReplicaStatus};
+use guaradict_core::Dictionary;
+use guaradict_core::replica::ReplicaStatus;
 
-pub async fn start(replica_statuses: Arc<Mutex<HashMap<String, ReplicaStatus>>>, _dictionary: Arc<Mutex<Dictionary>>) {
+pub async fn _start(replica_statuses: Arc<Mutex<HashMap<String, ReplicaStatus>>>, _dictionary: Arc<Mutex<Dictionary>>) {
     loop {
         // Obtém uma cópia do mapa de status das réplicas
         let replica_statuses = replica_statuses.lock().unwrap();
@@ -12,7 +13,7 @@ pub async fn start(replica_statuses: Arc<Mutex<HashMap<String, ReplicaStatus>>>,
         // Itera sobre cada réplica e executa a sincronização delta
         for (_, status) in replica_statuses.iter() {
             // Verifica se a réplica está pronta e se possui um socket ativo
-            if status.is_ready && status.active_socket.is_some() {
+            if status.ready && status.addr.is_some() {
                 // Execute a lógica de sincronização delta usando o socket ativo da réplica
                 // Você pode implementar essa lógica aqui
                 // Exemplo: enviar atualizações delta para a réplica
