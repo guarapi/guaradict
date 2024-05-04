@@ -153,6 +153,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_yaml",
+ "tokio",
 ]
 
 [[package]]

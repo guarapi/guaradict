@@ -4,12 +4,12 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 
-use guaradict_core::commands::Command;
+use guaradict_core::commands::client;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
     // Estabelecer conexão com o servidor
-    let mut stream = TcpStream::connect("127.0.0.1:8080").await?;
+    let mut stream = TcpStream::connect("127.0.0.1:13141").await?;
     println!("Conexão estabelecida com o servidor.");
 
     let mut rl = DefaultEditor::new().expect("Erro iniciando REPL");
@@ -26,7 +26,7 @@ async fn main() -> io::Result<()> {
                     break;
                 }
 
-                match Command::parse(&line) {
+                match client::Command::parse(&line) {
                     Ok(command) => {
                         let command_str = command.execute();
                         send_command(&mut stream, &command_str).await?;

@@ -1,4 +1,4 @@
-use guaradict_core::dictionary::Dictionary;
+use guaradict_core::Dictionary;
 
 #[test]
 fn test_add_entry() {
