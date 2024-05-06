@@ -44,7 +44,8 @@ async fn handle_client(mut socket: TcpStream, dictionary: Arc<Mutex<Dictionary>>
             continue;
         }
 
-        // @TODO Refatorar usar frame coom header e payload
+        // @TODO Refatorar usar frame com header e payload
+        // @TODO Refatorar para não responder ping de replica com "Invalid command"
         let response = match client::Command::parse(request.trim()) {
             Ok(command) => match command {
                 client::Command::Add(key, value) => add_entry(key, value, dictionary).await,
@@ -56,7 +57,7 @@ async fn handle_client(mut socket: TcpStream, dictionary: Arc<Mutex<Dictionary>>
         };
 
         if let Err(e) = socket.write_all(response.as_bytes()).await {
-            eprintln!("Faalha na resposta: {}", e);
+            eprintln!("Falha na resposta: {}", e);
         } else {
             // Log da resposta enviada
             println!("Response sent: {}", response);
@@ -67,12 +68,14 @@ async fn handle_client(mut socket: TcpStream, dictionary: Arc<Mutex<Dictionary>>
 }
 
 
+// @TODO adicionar drop(dictionary)
 async fn add_entry(key: String, value: String, dictionary: Arc<Mutex<Dictionary>>) -> String {
     let mut dictionary = dictionary.as_ref().lock().await;
     dictionary.add_entry(key, value);
     "Entry added successfully".to_string()
 }
 
+// @TODO adicionar drop(dictionary)
 async fn get_definition(key: String, dictionary: Arc<Mutex<Dictionary>>) -> String {
     let dictionary = dictionary.as_ref().lock().await;
     match dictionary.get_definition(&key) {
@@ -81,6 +84,7 @@ async fn get_definition(key: String, dictionary: Arc<Mutex<Dictionary>>) -> Stri
     }
 }
 
+// @TODO adicionar drop(dictionary)
 async fn remove_entry(key: String, dictionary: Arc<Mutex<Dictionary>>) -> String {
     let mut dictionary = dictionary.as_ref().lock().await;
     dictionary.remove_entry(&key);

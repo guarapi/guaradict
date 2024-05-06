@@ -8,7 +8,7 @@ pub struct ReplicaStatus {
     #[serde(with = "duration_serde")]
     pub ping: Duration,
     pub ready: bool,
-    pub addr: Option<std::net::SocketAddr>,
+    pub addr: Option<SocketAddr>,
 }
 
 impl ReplicaStatus {

@@ -45,13 +45,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .iter()
             .map(|r| (r.name.to_string(), ReplicaStatus::from(r.clone())))
             .collect::<HashMap<String, ReplicaStatus>>();
+        // let operations_log = LogOperator::new();
 
         let replica_monitor_server = ReplicaMonitorServer::new(replicas);
+        // let synchronizer_server = SynchronizerServer::new(operations_log);
 
         // Spawna a tarefa para monitorar o ping das réplicas
         tokio::spawn(async move {
             replica_monitor_server.start().await;
         });
+
+        // Spawna a tarefa para sincronizar as replicas
+        // tokio::spawn(async move {
+        //     synchronizer_server.start().await;
+        // });
 
         // replica_sync::start(replica_statuses.clone(), dictionary.clone()).await;
     } else {
