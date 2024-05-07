@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 use tokio::net::{TcpListener, TcpStream};
@@ -22,7 +21,6 @@ impl ServerLogic {
     pub async fn start(&self, listener: TcpListener) {
         println!("Servidor ouvindo em {:?}", listener.local_addr());
         let tx = self.tx.as_ref().lock().await;
-        let dictionary = self.dictionary.as_ref().lock().await;
 
         // Loop principal para lidar com conexões de clientes
         loop {
@@ -30,7 +28,7 @@ impl ServerLogic {
 
             println!("Nova conexão {} {}", socket.peer_addr().unwrap().ip(), socket.peer_addr().unwrap().port());
 
-            let dictionary = dictionary.clone();
+            let dictionary = self.dictionary.clone();
             let tx = tx.clone();
 
             // Lidar com o cliente em uma nova tarefa
@@ -42,8 +40,9 @@ impl ServerLogic {
         }
     }
 
-    async fn handle_client(mut socket: TcpStream, dictionary: Dictionary, tx: Sender<client::Command>) -> Result<(), Box<dyn std::error::Error>> {
+    async fn handle_client(mut socket: TcpStream, dictionary: Arc<Mutex<Dictionary>>, tx: Sender<client::Command>) -> Result<(), Box<dyn std::error::Error>> {
         let mut buffer = [0; 1024];
+        let dictionary = dictionary.clone();
 
         while let Ok(n) = socket.read(&mut buffer).await {
             let request = String::from_utf8_lossy(&buffer[..n]);
@@ -95,7 +94,8 @@ impl ServerLogic {
     }
 
     // @TODO add deve verificar se existe antes, set deve ser o update
-    async fn add_entry(key: String, value: String, mut dictionary: Dictionary, tx: Sender<client::Command>) -> String {
+    async fn add_entry(key: String, value: String, dictionary: Arc<Mutex<Dictionary>>, tx: Sender<client::Command>) -> String {
+        let mut dictionary = dictionary.as_ref().lock().await;
         dictionary.add_entry(key.to_string(), value.to_string());
 
         match dictionary.get_definition(&key) {
@@ -118,13 +118,16 @@ impl ServerLogic {
             }
         }
 
-        drop(dictionary);
+        println!("{:#?}", dictionary);
 
+        drop(dictionary);
 
         "Entry added successfully".to_string()
     }
 
-    async fn get_definition(key: String, dictionary: Dictionary, tx: Sender<client::Command>) -> String {
+    async fn get_definition(key: String, dictionary: Arc<Mutex<Dictionary>>, tx: Sender<client::Command>) -> String {
+        let dictionary = dictionary.as_ref().lock().await;
+
         let result = match dictionary.get_definition(&key) {
             Some(definition) => format!("Definition: {}", definition),
             None => "Key not found".to_string(),
@@ -142,7 +145,9 @@ impl ServerLogic {
         result
     }
 
-    async fn remove_entry(key: String, mut dictionary: Dictionary, tx: Sender<client::Command>) -> String {
+    async fn remove_entry(key: String, dictionary: Arc<Mutex<Dictionary>>, tx: Sender<client::Command>) -> String {
+        let mut dictionary = dictionary.as_ref().lock().await;
+
         dictionary.remove_entry(&key);
 
         drop(dictionary);
