@@ -30,6 +30,10 @@ async fn handle_client(mut socket: TcpStream, dictionary: Arc<Mutex<Dictionary>>
         let request = String::from_utf8_lossy(&buffer[..n]);
         let dictionary = Arc::clone(&dictionary);
 
+        if n == 0 {
+            continue;
+        }
+
         if request.trim() == "QUIT" {
             // Fechar a conexão com o cliente e sair da função
             return Ok(());
