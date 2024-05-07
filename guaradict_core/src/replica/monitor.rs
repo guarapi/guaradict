@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
-// use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::{Duration, Instant};
 
 use super::ReplicaStatus;
@@ -19,20 +19,26 @@ impl ReplicaMonitorServer {
         }
     }
 
-    pub async fn get_replica_status(&self, name: String) -> Option<ReplicaStatus> {
-        let replicas = Arc::clone(&self.replicas);
-        let mut replicas = replicas.as_ref().lock().await;
-        let replica = replicas.get_mut(&name.to_string()).cloned();
+    async fn connect_with_timeout(&self, addr: &SocketAddr, timeout_duration: Duration) -> Result<TcpStream, std::io::Error> {
+        tokio::time::timeout(timeout_duration, TcpStream::connect(addr)).await.unwrap()
+    }
 
-        drop(replicas);
-
-        replica
+    async fn heartbeat(&self, stream: &mut TcpStream, timeout_duration: Duration) -> Result<Duration, std::io::Error> {
+        let start_time = Instant::now();
+        stream.write_all(b"PING\n").await?;
+        let mut buf = [0; 5];
+        tokio::time::timeout(timeout_duration, stream.read_exact(&mut buf)).await??;
+        if &buf == b"PONG\n" {
+            Ok(start_time.elapsed())
+        } else {
+            println!("RESPOSTA NAO FOI PONG: ({})", String::from_utf8_lossy(&buf[..5]));
+            Err(std::io::Error::new(std::io::ErrorKind::Other, "Resposta inválida"))
+        }
     }
 
     pub async fn start(&self) {
         let replicas = Arc::clone(&self.replicas);
-        // Executa loop a cada 5 segundos
-        let mut interval = tokio::time::interval(Duration::from_secs(5));
+        let mut interval = tokio::time::interval(Duration::from_secs(1));
 
         loop {
             interval.tick().await;
@@ -41,28 +47,52 @@ impl ReplicaMonitorServer {
 
             for (_, replica) in replicas.iter_mut() {
                 if let Some(addr) = &replica.addr {
-                    let start_time = Instant::now();
-                    // Tenta conectar com timeout de 3s
-                    match connect_with_timeout(addr, Duration::from_secs(3)).await {
-                        Ok(_) => {
-                            let end_time = Instant::now();
-                            replica.ping = end_time.duration_since(start_time);
-                            replica.ready = true;
+                    if let Some(stream) = &mut replica.stream {
+                        let mut locked_stream = stream.lock().await;
+                        match self.heartbeat(&mut *locked_stream, Duration::from_secs(1)).await {
+                            Ok(ping_time) => {
+                                replica.ping = ping_time;
+                                replica.ready = true;
+                                replica.failures = 0;
+                                println!("Sucesso no PING");
+                            }
+                            Err(e) => {
+                                replica.ping = Duration::default();
+                                replica.ready = false;
+                                replica.failures += 1;
+                                if replica.failures >= 3 {
+                                    drop(locked_stream);
+                                    replica.stream = None;
+                                }
+                                println!("Erro no PING: {}", e);
+                            }
                         }
-                        Err(_) => {
-                            replica.ready = false;
+                    } else {
+                        match self.connect_with_timeout(addr, Duration::from_secs(3)).await {
+                            Ok(stream) => {
+                                replica.stream = Some(Arc::new(Mutex::new(stream)));
+                                replica.ping = Duration::default();
+                                replica.ready = true;
+                                replica.failures = 0;
+                                println!("Sucesso na reconexão");
+                            }
+                            Err(e) => {
+                                replica.ping = Duration::default();
+                                replica.ready = false;
+                                replica.failures += 1;
+                                if replica.failures >= 3 {
+                                    replica.stream = None;
+                                }
+                                println!("Erro ao reconectar: {}", e);
+                            }
                         }
                     }
                 }
             }
 
-            println!("{:?}", replicas);
+            println!("{:#?}", replicas);
 
             drop(replicas);
         }
     }
-}
-
-async fn connect_with_timeout(addr: &SocketAddr, timeout_duration: Duration) -> Result<TcpStream, std::io::Error> {
-    tokio::time::timeout(timeout_duration, TcpStream::connect(addr)).await.unwrap()
 }
