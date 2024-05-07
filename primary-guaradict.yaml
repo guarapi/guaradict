@@ -1,16 +1,18 @@
-nodeType: primary
 name: primary-node
+nodeType: primary
 ip: 127.0.0.1
-host: 127.0.0.1
+host: ::0
 port: 13141
 database: my-database
-journal:
-  size: 100
-  strategy: sync
+
 replicas:
   - name: replica-node-1
     nodeType: replica
     ip: 127.0.0.1
     host: 127.0.0.1
-    port: 13142
     database: my-database
+    port: 13142
+
+journal:
+  size: 1000
+  strategy: sync

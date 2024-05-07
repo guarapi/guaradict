@@ -1,152 +1,110 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "Configuração do Guaradict",
-    "type": "object",
-    "properties": {
-        "primary": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "ip": {
-                        "type": "string",
-                        "anyOf": [
-                            {
-                                "format": "ipv4"
-                            },
-                            {
-                                "format": "ipv6"
-                            }
-                        ]
-                    },
-                    "host": {
-                        "type": "string"
-                    },
-                    "database": {
-                        "type": "string",
-                        "pattern": "^[a-z0-9-]+$"
-                    },
-                    "replicas": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "name": {
-                                    "type": "string"
-                                },
-                                "ip": {
-                                    "type": "string",
-                                    "anyOf": [
-                                        {
-                                            "format": "ipv4"
-                                        },
-                                        {
-                                            "format": "ipv6"
-                                        }
-                                    ]
-                                },
-                                "host": {
-                                    "type": "string"
-                                },
-                                "database": {
-                                    "type": "string",
-                                    "pattern": "^[a-z0-9-]+$"
-                                }
-                            },
-                            "required": [
-                                "name",
-                                "ip",
-                                "host",
-                                "database"
-                            ]
+    "$ref": "#/definitions/node",
+    "additionalProperties": false,
+    "definitions": {
+        "node": {
+            "type": "object",
+            "properties": {
+                "nodeType": {
+                    "type": "string",
+                    "description": "Tipo do nó",
+                    "enum": [
+                        "primary",
+                        "replica"
+                    ]
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Nome do nó"
+                },
+                "ip": {
+                    "type": "string",
+                    "anyOf": [
+                        {
+                            "format": "ipv4"
                         },
-                        "minItems": 1
-                    }
+                        {
+                            "format": "ipv6"
+                        }
+                    ],
+                    "description": "Endereço IP (IPv4/IPv6) do nó",
+                    "examples": [
+                        "127.0.0.1",
+                        "192.168.1.100",
+                        "::0"
+                    ]
                 },
-                "required": [
-                    "name",
-                    "ip",
-                    "host",
-                    "database",
-                    "replicas"
-                ]
-            },
-            "minItems": 1
-        },
-        "replica": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "ip": {
-                        "type": "string",
-                        "anyOf": [
+                "host": {
+                    "type": "string",
+                    "description": "Nome do host do nó"
+                },
+                "port": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535,
+                    "description": "Porta do nó"
+                },
+                "database": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]+$",
+                    "description": "Nome da base de dados associada ao nó"
+                },
+                "replicas": {
+                    "type": "array",
+                    "items": {
+                        "allOf": [
                             {
-                                "format": "ipv4"
+                                "$ref": "#/definitions/node"
                             },
                             {
-                                "format": "ipv6"
+                                "properties": {
+                                    "replicas": false,
+                                    "journal": false
+                                }
                             }
                         ]
                     },
-                    "host": {
-                        "type": "string"
-                    },
-                    "database": {
-                        "type": "string",
-                        "pattern": "^[a-z0-9-]+$"
-                    }
+                    "minItems": 1,
+                    "description": "Lista de réplicas associadas ao nó"
                 },
-                "required": [
-                    "name",
-                    "ip",
-                    "host",
-                    "database"
-                ]
+                "journal": {
+                    "$ref": "#/definitions/journal",
+                    "description": "Configurações de registro de alterações associadas ao nó",
+                    "additionalProperties": false
+                }
             },
-            "minItems": 1
+            "required": [
+                "nodeType",
+                "name",
+                "ip",
+                "host",
+                "port"
+            ]
         },
         "journal": {
             "type": "object",
             "properties": {
+                "size": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Tamanho do arquivo journal em bytes"
+                },
                 "strategy": {
                     "type": "string",
                     "enum": [
                         "async",
                         "sync",
                         "snapshot_log"
-                    ]
+                    ],
+                    "description": "Estratégia de registro de alterações"
                 }
-            }
-        }
-    },
-    "oneOf": [
-        {
+            },
             "required": [
-                "primary"
-            ],
-            "not": {
-                "required": [
-                    "replica"
-                ]
-            }
-        },
-        {
-            "required": [
-                "replica"
-            ],
-            "not": {
-                "required": [
-                    "primary"
-                ]
-            }
+                "strategy",
+                "size"
+            ]
         }
-    ],
-    "additionalProperties": false
+    }
 }

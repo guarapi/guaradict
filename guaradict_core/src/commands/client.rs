@@ -1,17 +1,20 @@
+#[derive(Debug, Clone)]
 pub enum Command {
     Get(String),
+    Set(String, String),
     Add(String, String),
-    Delete(String),
-    QUIT,
+    Del(String),
+    Quit,
 }
 
 impl Command {
     pub fn execute(&self) -> String {
         match self {
             Command::Get(key) => format!("GET {}", key),
+            Command::Set(key, value) => format!("SET {} {}", key, value),
             Command::Add(key, value) => format!("ADD {} {}", key, value),
-            Command::Delete(key) => format!("DELETE {}", key),
-            Command::QUIT => format!("QUIT"),
+            Command::Del(key) => format!("DEL {}", key),
+            Command::Quit => format!("QUIT"),
         }
     }
 
@@ -20,9 +23,10 @@ impl Command {
         let parts: Vec<&str> = input.trim().split_whitespace().collect();
         match parts.as_slice() {
             ["GET", key] => Ok(Command::Get(key.to_string())),
-            ["DELETE", key] => Ok(Command::Delete(key.to_string())),
+            ["SET", key, value @ ..] => Ok(Command::Set(key.to_string(), value.join(" "))),
+            ["DEL", key] => Ok(Command::Del(key.to_string())),
             ["ADD", key, value @ ..] => Ok(Command::Add(key.to_string(), value.join(" "))),
-            ["QUIT"] => Ok(Command::QUIT),
+            ["QUIT"] => Ok(Command::Quit),
             _ => Err("Comando inválido"),
         }
     }
@@ -46,7 +50,7 @@ mod tests {
 
     #[test]
     fn test_execute_delete() {
-        let command = Command::Delete("key1".to_string());
+        let command = Command::Del("key1".to_string());
         assert_eq!(command.execute(), "DELETE key1");
     }
 }

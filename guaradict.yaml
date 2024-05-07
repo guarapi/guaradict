@@ -16,8 +16,7 @@
 #
 # 3. Configuração do Jornal (Journal):
 #    - O jornal é responsável pelo registro de operações e pela sincronização de dados entre os nós.
-#    - Pode ser configurado com uma das seguintes estratégias: "async" (assíncrono), "sync" (síncrono) ou "snapshot_log" (snapshot + log).
-#    - A estratégia do jornal pode ser configurada globalmente.
+#    - Pode ser configurado com uma das seguintes estratégias: "async" (assíncrono), "sync" (síncrono) ou "snapshot_log" (snapshot + log)
 #
 # 4. Exemplos de Configuração:
 #    - Este arquivo contém exemplos comentados de diferentes cenários de configuração.
@@ -30,61 +29,73 @@
 #
 
 # Joural - sync / async / snapshot_log
-journal:
-  strategy: sync
 
 # Este cenário representa um nó primário com uma réplica associada.
-primary:
-  - name: primary-node
-    ip: ::0
-    host: ::0
-    database: my-database
-    replicas:
-      - name: replica-node-1
-        ip: 127.0.0.1
-        host: 127.0.0.1
-        database: my-database
+# nodeType: primary
+# name: primary-node
+# ip: 127.0.0.1
+# host: 127.0.0.1
+# port: 13141
+# journal:
+#   size: 100
+#   strategy: sync
+# replicas:
+#   - name: replica-node-1
+#     nodeType: replica
+#     ip: 127.0.0.1
+#     host: 127.0.0.1
+#     port: 13142
 
-# Este cenário representa dois nós primários, cada um com uma réplica associada.
-# primary:
-#   - name: primary-node-1
-#     ip: ::0
-#     host: ::0
-#     database: my-database-1
-#     replicas:
-#       - name: replica-node-1
-#         ip: 127.0.0.1
-#         host: 127.0.0.1
-#         database: my-database-1
+# Este cenário representa um nó réplica.
+# nodeType: replica
+# name: replica-node-1
+# ip: 127.0.0.1
+# host: 127.0.0.1
+# port: 13142
+
+# Este cenário representa dois nós primários.
+# nodeType: primary
+# name: primary-node-1
+# ip: 127.0.0.1
+# host: 127.0.0.1
+# port: 13141
+# journal:
+#   size: 100
+#   strategy: sync
+# replicas:
 #   - name: primary-node-2
-#     ip: ::0
-#     host: ::0
-#     database: my-database-2
-#     replicas:
-#       - name: replica-node-2
-#         ip: 127.0.0.1
-#         host: 127.0.0.1
-#         database: my-database-2
+#     nodeType: primary
+#     ip: 127.0.0.1
+#     host: 127.0.0.1
+#     port: 13142
+
+# Este cenário representa um nó réplica primária.
+# nodeType: primary
+# name: primary-node-2
+# ip: 127.0.0.1
+# host: 127.0.0.1
+# port: 13142
+# journal:
+#   size: 100
+#   strategy: sync
 
 # Este cenário representa um nó primário com duas réplicas associadas
-# primary:
-#   - name: primary-node
-#     ip: ::0
-#     host: ::0
-#     database: my-database
-#     replicas:
-#       - name: replica-node-1
-#         ip: 127.0.0.1
-#         host: 127.0.0.1
-#         database: my-database
-#       - name: replica-node-2
-#         ip: ::1
-#         host: ::1
-#         database: my-database
-
-# Este cenário representa um nó de replica
-# replica:
-#   - name: primary-node
-#     ip: ::0
-#     host: ::0
-#     database: my-database
+nodeType: primary
+name: primary-node-1
+ip: 127.0.0.1
+host: 127.0.0.1
+port: 13141
+journal:
+  size: 10
+  strategy: sync
+replicas:
+  - nodeType: replica
+    name: replica-node-1
+    ip: 127.0.0.1
+    host: 127.0.0.1
+    port: 13142
+  - nodeType: replica
+    name: replica-node-2
+    ip: 127.0.0.1
+    host: 127.0.0.1
+    port: 13143
