@@ -36,63 +36,76 @@ impl ReplicaMonitorServer {
         }
     }
 
-    pub async fn start(&self) {
+    async fn check_heartbeat(&self) {
         let replicas = Arc::clone(&self.replicas);
-        let mut interval = tokio::time::interval(Duration::from_secs(1));
+        let mut replicas = replicas.lock().await;
 
-        loop {
-            interval.tick().await;
-
-            let mut replicas = replicas.as_ref().lock().await;
-
-            for (_, replica) in replicas.iter_mut() {
-                if let Some(addr) = &replica.addr {
-                    if let Some(stream) = &mut replica.stream {
-                        let mut locked_stream = stream.lock().await;
-                        match self.heartbeat(&mut *locked_stream, Duration::from_secs(1)).await {
-                            Ok(ping_time) => {
-                                replica.ping = ping_time;
-                                replica.ready = true;
-                                replica.failures = 0;
-                                println!("Sucesso no PING");
-                            }
-                            Err(e) => {
-                                replica.ping = Duration::default();
-                                replica.ready = false;
-                                replica.failures += 1;
-                                if replica.failures >= 3 {
-                                    drop(locked_stream);
-                                    replica.stream = None;
-                                }
-                                println!("Erro no PING: {}", e);
-                            }
+        for (_, replica) in replicas.iter_mut() {
+            if let Some(stream) = &mut replica.stream {
+                let mut locked_stream = stream.lock().await;
+                match self.heartbeat(&mut *locked_stream, Duration::from_secs(1)).await {
+                    Ok(ping_time) => {
+                        replica.ping = ping_time;
+                        replica.ready = true;
+                        replica.failures = 0;
+                        println!("Sucesso no PING");
+                    }
+                    Err(e) => {
+                        replica.ping = Duration::default();
+                        replica.ready = false;
+                        replica.failures += 1;
+                        if replica.failures >= 3 {
+                            drop(locked_stream);
+                            replica.stream = None;
                         }
-                    } else {
-                        match self.connect_with_timeout(addr, Duration::from_secs(3)).await {
-                            Ok(stream) => {
-                                replica.stream = Some(Arc::new(Mutex::new(stream)));
-                                replica.ping = Duration::default();
-                                replica.ready = true;
-                                replica.failures = 0;
-                                println!("Sucesso na reconexão");
+                        println!("Erro no PING: {}", e);
+                    }
+                }
+            }
+        }
+
+        drop(replicas);
+    }
+
+    async fn check_reconnect(&self) {
+        let replicas = Arc::clone(&self.replicas);
+        let mut replicas = replicas.lock().await;
+
+        for (_, replica) in replicas.iter_mut() {
+            if let Some(addr) = &replica.addr {
+                if replica.stream.is_none() {
+                    match self.connect_with_timeout(addr, Duration::from_secs(3)).await {
+                        Ok(stream) => {
+                            replica.stream = Some(Arc::new(Mutex::new(stream)));
+                            replica.ping = Duration::default();
+                            replica.ready = true;
+                            replica.failures = 0;
+                            println!("Sucesso na reconexão");
+                        }
+                        Err(e) => {
+                            replica.ping = Duration::default();
+                            replica.ready = false;
+                            replica.failures += 1;
+                            if replica.failures >= 3 {
+                                replica.stream = None;
                             }
-                            Err(e) => {
-                                replica.ping = Duration::default();
-                                replica.ready = false;
-                                replica.failures += 1;
-                                if replica.failures >= 3 {
-                                    replica.stream = None;
-                                }
-                                println!("Erro ao reconectar: {}", e);
-                            }
+                            println!("Erro ao reconectar: {}", e);
                         }
                     }
                 }
             }
+        }
 
-            println!("{:#?}", replicas);
+        drop(replicas);
+    }
 
-            drop(replicas);
+    pub async fn start(&self) {
+        let mut interval = tokio::time::interval(Duration::from_secs(5));
+
+        loop {
+            interval.tick().await;
+            self.check_heartbeat().await;
+            self.check_reconnect().await;
         }
     }
 }

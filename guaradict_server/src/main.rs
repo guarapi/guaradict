@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 use std::env;
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::mpsc;
 use tokio::net::TcpListener;
 use guaradict_core::Dictionary;
-use guaradict_core::replica::{ReplicaMonitorServer, ReplicaStatus};
+use guaradict_core::replica::{LogOperator, ReplicaMonitorServer, ReplicaStatus, SynchronizerServer};
 use guaradict_core::config::parse_config_file;
 
 mod replica_sync;
@@ -12,8 +11,6 @@ mod server_logic;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let dictionary = Arc::new(Mutex::new(Dictionary::new()));
-
     let args: Vec<String> = env::args().collect();
     let mut config_file = "guaradict.yaml";
 
@@ -36,8 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    let addr = format!("{}:{}", config.ip, config.port);
-    let listener = TcpListener::bind(&addr).await?;
+    let (tx, rx) = mpsc::channel(10);
 
     if let Some(replicas) = config.replicas {
         // @TODO: mover para o construtor do ReplicaMonitorServer
@@ -45,10 +41,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .iter()
             .map(|r| (r.name.to_string(), ReplicaStatus::from(r.clone())))
             .collect::<HashMap<String, ReplicaStatus>>();
-        // let operations_log = LogOperator::new();
+
+        let operations_log = LogOperator::new();
 
         let replica_monitor_server = ReplicaMonitorServer::new(replicas);
-        // let synchronizer_server = SynchronizerServer::new(operations_log);
+        let synchronizer_server = SynchronizerServer::new(rx, operations_log);
 
         // Spawna a tarefa para monitorar o ping das réplicas
         tokio::spawn(async move {
@@ -56,16 +53,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
 
         // Spawna a tarefa para sincronizar as replicas
-        // tokio::spawn(async move {
-        //     synchronizer_server.start().await;
-        // });
+        tokio::spawn(async move {
+            synchronizer_server.start().await;
+        });
 
         // replica_sync::start(replica_statuses.clone(), dictionary.clone()).await;
     } else {
         println!("Nenhuma réplica encontrada na configuração.");
     }
 
-    server_logic::start(listener, dictionary).await;
+    let addr = format!("{}:{}", config.ip, config.port);
+    let listener = TcpListener::bind(&addr).await?;
+    let dictionary = Dictionary::new();
+    let client_server = server_logic::ServerLogic::new(tx, dictionary);
+
+    // Spawna a tarefa para servir comaandos para os clients (e PING PONG heartbeat)
+    let _ = tokio::spawn(async move {
+        client_server.start(listener).await;
+    }).await;
 
     Ok(())
 }
