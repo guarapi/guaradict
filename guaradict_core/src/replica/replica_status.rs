@@ -1,5 +1,8 @@
 use std::net::SocketAddr;
+use std::sync::Arc;
 use serde::{Deserialize, Serialize};
+use tokio::net::TcpStream;
+use tokio::sync::Mutex;
 use tokio::time::Duration;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -9,6 +12,9 @@ pub struct ReplicaStatus {
     pub ping: Duration,
     pub ready: bool,
     pub addr: Option<SocketAddr>,
+    pub failures: u32,
+    #[serde(skip)]
+    pub(crate) stream: Option<Arc<Mutex<TcpStream>>>,
 }
 
 impl ReplicaStatus {
@@ -25,8 +31,10 @@ impl ReplicaStatus {
         Self {
             name: String::new(),
             ping: Duration::default(),
+            failures: 0,
             ready: false,
             addr: None,
+            stream: None,
         }
     }
 }
