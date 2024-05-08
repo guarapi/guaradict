@@ -1,6 +1,8 @@
 use std::io;
+use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::time;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 
@@ -8,7 +10,19 @@ use guaradict_core::commands::client;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    // Estabelecer conexão com o servidor
+    loop {
+        match connect_and_interact().await {
+            Ok(()) => break,
+            Err(err) => {
+                eprintln!("Erro na conexão: {}", err);
+                time::sleep(Duration::from_secs(5)).await;
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn connect_and_interact() -> io::Result<()> {
     let mut stream = TcpStream::connect("127.0.0.1:13141").await?;
     println!("Conexão estabelecida com o servidor.");
 
@@ -29,8 +43,14 @@ async fn main() -> io::Result<()> {
                 match client::Command::parse(&line) {
                     Ok(command) => {
                         let command_str = command.execute();
-                        send_command(&mut stream, &command_str).await?;
-                        read_response(&mut stream).await?;
+                        if let Err(err) = send_command(&mut stream, &command_str).await {
+                            eprintln!("Erro ao enviar comando: {}", err);
+                            return Err(err);
+                        }
+                        if let Err(err) = read_response(&mut stream).await {
+                            eprintln!("Erro ao ler resposta: {}", err);
+                            return Err(err);
+                        }
                     }
                     Err(err) => {
                         println!("Erro ao analisar comando: {:?}", err);
