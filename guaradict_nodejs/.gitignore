@@ -1,0 +1,4 @@
+/target
+/node_modules
+*.log
+index.node
