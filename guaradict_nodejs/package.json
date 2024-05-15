@@ -1,0 +1,15 @@
+{
+  "name": "@guarapi/guaradict",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "cargo-build": "cargo build --message-format=json > cargo.log",
+    "postcargo-build": "neon dist -n guaradict_nodejs < cargo.log",
+    "debug": "npm run cargo-build --",
+    "build": "npm run cargo-build -- --release"
+  },
+  "devDependencies": {
+    "@neon-rs/cli": "0.1.68"
+  }
+}
