@@ -129,7 +129,7 @@ impl ServerLogic {
         let dictionary = dictionary.as_ref().lock().await;
 
         let result = match dictionary.get_definition(&key) {
-            Some(definition) => format!("Definition: {}", definition),
+            Some(definition) => definition.to_string(),
             None => "Key not found".to_string(),
         };
 
